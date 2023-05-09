@@ -40,11 +40,25 @@ def load_and_prepare_models(
     return model, tokenizer
 
 
-def prepare_unlimiformer_kwargs(defaults: UnlimiformerArguments, tokenizer) -> dict:
+def prepare_unlimiformer_kwargs(
+    tokenizer, defaults: UnlimiformerArguments = None
+) -> dict:
+    defaults = UnlimiformerArguments() if defaults is None else defaults
     unlimiformer_kwargs = {
-        key: getattr(defaults, key)
-        for key in dir(defaults)
-        if not key.startswith("__") and not callable(getattr(defaults, key))
+        "layer_begin": defaults.layer_begin,
+        "layer_end": defaults.layer_end,
+        "unlimiformer_head_num": defaults.unlimiformer_head_num,
+        "exclude_attention": defaults.unlimiformer_exclude,
+        "chunk_overlap": defaults.unlimiformer_chunk_overlap,
+        "model_encoder_max_len": defaults.unlimiformer_chunk_size,
+        "verbose": defaults.unlimiformer_verbose,
+        "unlimiformer_training": defaults.unlimiformer_training,
+        "use_datastore": defaults.use_datastore,
+        "flat_index": defaults.flat_index,
+        "test_datastore": defaults.test_datastore,
+        "reconstruct_embeddings": defaults.reconstruct_embeddings,
+        "gpu_datastore": defaults.gpu_datastore,
+        "gpu_index": defaults.gpu_index,
     }
     unlimiformer_kwargs["tokenizer"] = tokenizer
     return unlimiformer_kwargs
@@ -121,7 +135,9 @@ def run_inference(
 
     # setup model
     defaults = UnlimiformerArguments()
-    unlimiformer_kwargs = prepare_unlimiformer_kwargs(defaults, tokenizer)
+    unlimiformer_kwargs = prepare_unlimiformer_kwargs(
+        tokenizer=tokenizer, defaults=defaults
+    )
     model = Unlimiformer.convert_model(model, **unlimiformer_kwargs)
     model = model.to(device)
     model.eval()
