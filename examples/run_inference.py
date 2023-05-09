@@ -68,7 +68,7 @@ def prepare_unlimiformer_kwargs(
 
 def run_inference(
     input_data: str,
-    model_name: str = "abertsch/unlimiformer-bart-govreport-alternating",
+    model_name: str = "abertsch/unlimiformer-bart-booksum-alternating",
     tokenizer_name: str = None,
     split_name: str = "validation",
     source_column: str = "input",
