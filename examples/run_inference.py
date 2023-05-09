@@ -1,20 +1,30 @@
+"""
+run_inference.py - This file contains the code for running inference with the Unlimiformer model on a dataset or input files and saving the summaries to a specified directory.
+
+Usage:
+    python run_inference.py --input_data <input_data> --model_name <model_name> --output_dir <output_dir>
+
+For more information, run:
+    python run_inference.py --help
+"""
+
 import json
-import sys
-import os
 import logging
+import os
+import pprint as pp
+import sys
 from pathlib import Path
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
 import fire
 import torch
+from constants import PRETRAINED_MODELS
 from datasets import load_dataset
 from tqdm import tqdm
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 
 from unlimiformer import Unlimiformer, UnlimiformerArguments
-
-from constants import PRETRAINED_MODELS
 
 
 def get_model_and_tokenizer_name(identifier: str) -> tuple:
@@ -80,6 +90,7 @@ def run_inference(
     output_dir: str = None,
     compile_model: bool = False,
     debug: bool = False,
+    print_models: bool = False,
     **generate_kwargs,
 ) -> None:
     """
@@ -87,18 +98,19 @@ def run_inference(
 
     Args:
         input_data (str, optional): Source data to be summarized. Can be a path to a file or directory, or a dataset name.
-        model_name (str, optional): Name or key of the pretrained model.
-        tokenizer_name (str, optional): Name of the tokenizer to be used with the model.
-        split_name (str, optional): Dataset split to be used (e.g., "validation").
-        source_column (str, optional): Column in the dataset containing the input text.
-        max_input_length (int, optional): Maximum input length for the tokenizer.
-        max_new_tokens (int, optional): Maximum number of tokens in the generated summary.
-        num_beams (int, optional): Number of beams to use for beam search.
-        recursive (bool, optional): Whether to search for input files recursively in the input directory.
-        max_samples (int, optional): Maximum number of samples to process.
-        output_dir (str, optional): Directory where the summaries will be saved.
-        compile_model (bool, optional): Whether to compile the model before running inference.
-        debug (bool, optional): Whether to enable debug logging.
+        model_name (str, optional): Name of the pretrained model. defaults to "abertsch/unlimiformer-bart-booksum-alternating".
+        tokenizer_name (str, optional): Name of the tokenizer to be used with the model. (defaults to None, which will use the tokenizer from the model)
+        split_name (str, optional): Dataset split to be used. Defaults to "validation".
+        source_column (str, optional): Column in the dataset containing the input text. Defaults to "input".
+        max_input_length (int, optional): Maximum input length for the tokenizer. Defaults to 32768.
+        max_new_tokens (int, optional): Maximum number of tokens in the generated summary. Defaults to 1024.
+        num_beams (int, optional): Number of beams to use for beam search. Defaults to 4.
+        recursive (bool, optional): Whether to search for input files recursively in the input directory. Defaults to False.
+        max_samples (int, optional): Maximum number of samples to process. Defaults to None.
+        output_dir (str, optional): Directory where the summaries will be saved. Defaults to None
+        compile_model (bool, optional): Use torch.compile on the model before running inference. Defaults to False.
+        debug (bool, optional): Whether to enable debug logging. Defaults to False.
+        print_models (bool, optional): Print the available models and exit. Defaults to False.
         **generate_kwargs: Additional keyword arguments to be passed to the generate method of the model.
 
     Returns:
@@ -109,6 +121,14 @@ def run_inference(
     if debug:
         logger.setLevel(logging.DEBUG)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    if print_models:
+        print("Available models:")
+        pp.pprint(PRETRAINED_MODELS)
+        print(
+            "Either the top-level key or model_name can be used as the model_name argument."
+        )
+        sys.exit()
 
     if tokenizer_name is None:
         model_name, tokenizer_name = get_model_and_tokenizer_name(model_name)
