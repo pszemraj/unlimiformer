@@ -32,19 +32,34 @@ def process_example(
     return example_tokens, truncated_example_tokens
 
 
-def prepare_unlimiformer_kwargs(defaults: UnlimiformerArguments, tokenizer) -> dict:
+def prepare_unlimiformer_kwargs(
+    tokenizer, defaults: UnlimiformerArguments = None
+) -> dict:
+    defaults = UnlimiformerArguments() if defaults is None else defaults
     unlimiformer_kwargs = {
-        key: getattr(defaults, key)
-        for key in dir(defaults)
-        if not key.startswith("__") and not callable(getattr(defaults, key))
+        "layer_begin": defaults.layer_begin,
+        "layer_end": defaults.layer_end,
+        "unlimiformer_head_num": defaults.unlimiformer_head_num,
+        "exclude_attention": defaults.unlimiformer_exclude,
+        "chunk_overlap": defaults.unlimiformer_chunk_overlap,
+        "model_encoder_max_len": defaults.unlimiformer_chunk_size,
+        "verbose": defaults.unlimiformer_verbose,
+        "unlimiformer_training": defaults.unlimiformer_training,
+        "use_datastore": defaults.use_datastore,
+        "flat_index": defaults.flat_index,
+        "test_datastore": defaults.test_datastore,
+        "reconstruct_embeddings": defaults.reconstruct_embeddings,
+        "gpu_datastore": defaults.gpu_datastore,
+        "gpu_index": defaults.gpu_index,
     }
     unlimiformer_kwargs["tokenizer"] = tokenizer
     return unlimiformer_kwargs
 
 
-def generate_output(model, example, max_length: int, tokenizer) -> str:
+def generate_output(model, example, tokenizer, max_new_tokens: int = 512) -> str:
     return tokenizer.batch_decode(
-        model.generate(**example, max_length=max_length), ignore_special_tokens=True
+        model.generate(**example, max_new_tokens=max_new_tokens),
+        ignore_special_tokens=True,
     )[0]
 
 
@@ -55,6 +70,7 @@ def run_inference(
     split_name: str = "validation",
     source_column: str = "input",
     max_length: int = 1024,
+    max_new_tokens: int = 512,
 ) -> None:
     """
     run_inference -  basic inference example
@@ -65,6 +81,7 @@ def run_inference(
     :param str split_name: _description_, defaults to "validation"
     :param str source_column: _description_, defaults to "input"
     :param int max_length: _description_, defaults to 1024
+    :param int max_new_tokens: _description_, defaults to 512
     """
     logger = logging.getLogger(__name__)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -78,18 +95,24 @@ def run_inference(
 
     print(f"INPUT LENGTH (tokens): {example['input_ids'].shape[-1]}")
 
+    model.to(device)
+    truncated_out = generate_output(
+        model, truncated_example, tokenizer, max_new_tokens=max_new_tokens
+    )
+    print(f"Standard BART output:\t{truncated_out}")
+    # setup model
     defaults = UnlimiformerArguments()
-    unlimiformer_kwargs = prepare_unlimiformer_kwargs(defaults, tokenizer)
-
-    model.to(device)
-    truncated_out = generate_output(model, truncated_example, max_length, tokenizer)
-
+    unlimiformer_kwargs = prepare_unlimiformer_kwargs(
+        tokenizer=tokenizer, defaults=defaults
+    )
     model = Unlimiformer.convert_model(model, **unlimiformer_kwargs)
+    model = model.to(device)
     model.eval()
-    model.to(device)
 
-    unlimiformer_out = generate_output(model, example, max_length, tokenizer)
-    print(unlimiformer_out)
+    unlimiformer_out = generate_output(
+        model, example, tokenizer, max_new_tokens=max_new_tokens
+    )
+    print(f"Unlimiformer output:\t{unlimiformer_out}")
 
 
 if __name__ == "__main__":
