@@ -20,16 +20,16 @@ def load_and_prepare_models(
 
 
 def process_example(
-    tokenizer, example_input: str, max_length: int, device: torch.device
+    tokenizer, example_input: str, max_input_length: int = 1024, device: str = "cpu"
 ) -> tuple:
-    example = tokenizer(example_input, truncation=False, return_tensors="pt")
-    truncated_example = tokenizer(
-        example_input, truncation=True, max_length=max_length, return_tensors="pt"
+    example_tokens = tokenizer(example_input, truncation=False, return_tensors="pt")
+    truncated_example_tokens = tokenizer(
+        example_input, truncation=True, max_length=max_input_length, return_tensors="pt"
     )
-    example.to(device)
-    truncated_example.to(device)
+    example_tokens.to(device)
+    truncated_example_tokens.to(device)
 
-    return example, truncated_example
+    return example_tokens, truncated_example_tokens
 
 
 def prepare_unlimiformer_kwargs(defaults: UnlimiformerArguments, tokenizer) -> dict:
