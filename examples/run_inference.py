@@ -1,3 +1,5 @@
+import json
+import sys
 import os
 import logging
 from pathlib import Path
@@ -70,8 +72,9 @@ def run_inference(
     dataset_name: str = None,
     split_name: str = "validation",
     source_column: str = "input",
-    max_input_length: int = 16384,
+    max_input_length: int = 32768,
     max_new_tokens: int = 1024,
+    num_beams: int = 4,
     input_path: str = None,
     recursive: bool = False,
     max_samples: int = None,
@@ -80,10 +83,35 @@ def run_inference(
     debug: bool = False,
     **generate_kwargs,
 ) -> None:
+    """
+    Run inference with the Unlimiformer model on a dataset or input files and save the summaries to a specified directory.
+
+    Args:
+        model_name (str, optional): Name or key of the pretrained model.
+        tokenizer_name (str, optional): Name of the tokenizer to be used with the model.
+        dataset_name (str, optional): Name of the dataset to be summarized.
+        split_name (str, optional): Dataset split to be used (e.g., "validation").
+        source_column (str, optional): Column in the dataset containing the input text.
+        max_input_length (int, optional): Maximum input length for the tokenizer.
+        max_new_tokens (int, optional): Maximum number of tokens in the generated summary.
+        num_beams (int, optional): Number of beams to use for beam search.
+        input_path (str, optional): Path to the input file or directory.
+        recursive (bool, optional): Whether to search for input files recursively in the input directory.
+        max_samples (int, optional): Maximum number of samples to process.
+        output_dir (str, optional): Directory where the summaries will be saved.
+        compile_model (bool, optional): Whether to compile the model before running inference.
+        debug (bool, optional): Whether to enable debug logging.
+        **generate_kwargs: Additional keyword arguments to be passed to the generate method of the model.
+
+    Returns:
+        None
+    """
+    if sys.argv[1] == "--help":
+        fire.Fire(run_inference)
+        return
+
     if dataset_name is None and input_path is None:
-        raise ValueError(
-            "One of dataset_name, input_file, or input_dir must be provided."
-        )
+        raise ValueError("One of dataset_name or input_path must be provided.")
 
     logger = logging.getLogger(__name__)
     if debug:
@@ -99,7 +127,10 @@ def run_inference(
     if dataset_name is not None:
         logger.info(f"Loading dataset {dataset_name}...")
         dataset = load_dataset(dataset_name)
-        input_texts = [x[source_column] for x in dataset[split_name]]
+        input_texts = {
+            f"{dataset_name}_{split_name}_{i}": x[source_column]
+            for i, x in enumerate(dataset[split_name])
+        }
     else:
         input_path = Path(input_path)
         logger.info(f"Loading input from {input_path}...")
@@ -107,27 +138,36 @@ def run_inference(
             logger.info(
                 f"Loading input from {input_path} as directory. Recursive: {recursive}"
             )
-            input_texts = []
+            input_texts = {}
             for filepath in (
                 input_path.rglob("*") if recursive else input_path.glob("*")
             ):
                 if filepath.suffix == ".txt":
-                    with open(filepath, "r", encoding="utf-8", errors="ignore") as file:
-                        input_texts.append(file.read())
+                    try:
+                        with open(
+                            filepath, "r", encoding="utf-8", errors="ignore"
+                        ) as file:
+                            input_texts[filepath.stem] = file.read()
+                    except Exception as e:
+                        logger.error(f"Failed to read file {filepath}: {e}")
             logger.info(f"Loaded {len(input_texts)} files from {input_path}")
         elif input_path.is_file():
-            with open(input_path, "r", encoding="utf-8", errors="ignore") as file:
-                input_texts = [file.read()]
+            try:
+                with open(input_path, "r", encoding="utf-8", errors="ignore") as file:
+                    input_texts = {input_path.stem: file.read()}
+            except Exception as e:
+                logger.error(f"Failed to read file {input_path}: {e}")
+                sys.exit(1)
 
     if max_samples is not None:
         logger.info(f"Limiting to {max_samples} samples")
-        input_texts = input_texts[:max_samples]
+        input_texts = dict(list(input_texts.items())[:max_samples])
 
     if output_dir is None:
         output_dir = (
             input_path.parent / f"{input_path.stem}_unlimiformer_summaries"
             if input_path is not None
-            else Path.cwd() / "unlimiformer_summaries"
+            else Path.cwd() / "unlimiformer-summaries"
         )
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -147,7 +187,9 @@ def run_inference(
         model = torch.compile(model)
 
     logger.info("Running inference...")
-    for i, input_text in tqdm(enumerate(input_texts), desc="Inference"):
+    for i, (semantic_label, input_text) in tqdm(
+        enumerate(input_texts.items()), desc="Inference"
+    ):
         logger.debug(f"Processing input {i+1}/{len(input_texts)}...")
         inputs = tokenizer(
             input_text,
@@ -157,19 +199,49 @@ def run_inference(
             padding="max_length",
         ).to(model.device)
         summary_ids = model.generate(
-            **inputs, max_new_tokens=max_new_tokens, **generate_kwargs
+            **inputs,
+            max_new_tokens=max_new_tokens,
+            num_beams=num_beams,
+            early_stopping=True,
+            **generate_kwargs,
         )
         summary = tokenizer.decode(
             summary_ids[0], skip_special_tokens=True, clean_up_tokenization_spaces=True
         )
 
-        output_file = output_dir / f"summary_{i+1}.txt"
-        with open(output_file, "w", encoding="utf-8") as file:
-            file.write(summary)
+        output_file = output_dir / f"summary_{i}_{semantic_label}.txt"
+        try:
+            with open(output_file, "w", encoding="utf-8") as file:
+                file.write(summary)
+            logger.debug(
+                f"Processed input {i+1}/{len(input_texts)} and saved summary to {output_file}"
+            )
+        except Exception as e:
+            logger.error(f"Failed to write summary to {output_file}: {e}")
 
-        logger.debug(
-            f"Processed input {i+1}/{len(input_texts)} and saved summary to {output_file}"
-        )
+    # Save settings to a JSON file
+    settings = {
+        "model_name": model_name,
+        "tokenizer_name": tokenizer_name,
+        "dataset_name": dataset_name,
+        "split_name": split_name,
+        "source_column": source_column,
+        "max_input_length": max_input_length,
+        "max_new_tokens": max_new_tokens,
+        "num_beams": num_beams,
+        "early_stopping": True,
+        "input_path": str(input_path) if input_path else None,
+        "recursive": recursive,
+        "max_samples": max_samples,
+        "output_dir": str(output_dir),
+        "compile_model": compile_model,
+        "generate_kwargs": generate_kwargs,
+    }
+    settings_file = output_dir / "summarization_parameters.json"
+    with open(settings_file, "w", encoding="utf-8") as file:
+        json.dump(settings, file, ensure_ascii=False, indent=4)
+
+    logger.info(f"Settings saved to {settings_file}")
     logger.info(
         f"Finished inference. Summaries saved to:\n\t{str(output_dir.resolve())}"
     )
