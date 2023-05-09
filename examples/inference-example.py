@@ -53,6 +53,7 @@ def run_inference(
     tokenizer_name: str = "facebook/bart-base",
     dataset_name: str = "urialon/gov_report_validation",
     split_name: str = "validation",
+    source_column: str = "input",
     max_length: int = 1024,
 ) -> None:
     """
@@ -62,6 +63,7 @@ def run_inference(
     :param str tokenizer_name: _description_, defaults to "facebook/bart-base"
     :param str dataset_name: _description_, defaults to "urialon/gov_report_validation"
     :param str split_name: _description_, defaults to "validation"
+    :param str source_column: _description_, defaults to "input"
     :param int max_length: _description_, defaults to 1024
     """
     logger = logging.getLogger(__name__)
@@ -69,7 +71,7 @@ def run_inference(
     dataset = load_dataset(dataset_name)
 
     tokenizer, model = load_and_prepare_models(modelname, tokenizer_name)
-    example_input = dataset["validation"][0]["input"]
+    example_input = dataset[split_name][0][source_column]
     example, truncated_example = process_example(
         tokenizer, example_input, max_length, device
     )
