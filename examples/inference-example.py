@@ -1,3 +1,10 @@
+"""
+inference-example - example of how to use unlimiformer for inference. Based on the original one provided by the authors.
+
+Usage:
+    python inference-example.py --help
+"""
+import os
 import logging
 from pathlib import Path
 
@@ -9,6 +16,8 @@ from datasets import load_dataset
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 
 from unlimiformer import Unlimiformer, UnlimiformerArguments
+
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 
 def load_and_prepare_models(
@@ -110,6 +119,7 @@ def run_inference(
 
     print(f"INPUT LENGTH (tokens): {example['input_ids'].shape[-1]}")
 
+    model.eval()
     model.to(device)
     truncated_out = generate_output(
         model, truncated_example, tokenizer, max_new_tokens=max_new_tokens
