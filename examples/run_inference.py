@@ -200,6 +200,10 @@ def run_inference(
         model = torch.compile(model)
 
     logger.info("Running inference...")
+    if generate_kwargs is None:
+        generate_kwargs = {}
+    logger.debug(f"Additional generate_kwargs:\n{pp.pformat(generate_kwargs)}")
+
     for i, (semantic_label, input_text) in tqdm(
         enumerate(input_texts.items()), desc="Inference", total=len(input_texts)
     ):
