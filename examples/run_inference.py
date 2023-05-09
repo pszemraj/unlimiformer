@@ -181,7 +181,7 @@ def run_inference(
 
     logger.info("Running inference...")
     for i, (semantic_label, input_text) in tqdm(
-        enumerate(input_texts.items()), desc="Inference"
+        enumerate(input_texts.items()), desc="Inference", total=len(input_texts)
     ):
         logger.debug(f"Processing input {i+1}/{len(input_texts)}...")
         inputs = tokenizer(
