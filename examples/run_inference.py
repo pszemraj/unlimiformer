@@ -19,12 +19,14 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 
 import fire
 import torch
-from constants import PRETRAINED_MODELS
 from datasets import load_dataset
 from tqdm import tqdm
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 
+import unlimiformer
 from unlimiformer import Unlimiformer, UnlimiformerArguments
+
+from constants import PRETRAINED_MODELS
 
 
 def get_model_and_tokenizer_name(identifier: str) -> tuple:
@@ -178,7 +180,7 @@ def run_inference(
 
     if output_dir is None:
         output_dir = (
-            input_data.parent / f"{input_data.stem}_unlimiformer_summaries"
+            input_data.parent / f"{input_data.stem}-unlimiformer-summaries"
             if Path(input_data).exists()
             else Path.cwd() / "unlimiformer-summaries"
         )
@@ -252,6 +254,7 @@ def run_inference(
         "output_dir": str(output_dir),
         "compile_model": compile_model,
         "generate_kwargs": generate_kwargs,
+        "unlimiformer_version": unlimiformer.__version__,
     }
     settings_file = output_dir / "summarization_parameters.json"
     with open(settings_file, "w", encoding="utf-8") as file:
