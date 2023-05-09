@@ -8,6 +8,7 @@ Unlimiformer is a method for augmenting pretrained encoder-decoder models with a
 
 Unlimiformer can be used to improve performance of an already-trained model. However, for best results, the model should be trained with Unlimiformer.
 
+---
 
 **Table of Contents**
 
@@ -26,6 +27,7 @@ Unlimiformer can be used to improve performance of an already-trained model. How
     - [For evaluation (including early stopping)](#for-evaluation-including-early-stopping)
   - [Citation](#citation)
 
+---
 
 ## Installation
 
@@ -35,11 +37,13 @@ After cloning the repository, install the requirements:
 pip install -e .
 ```
 
-If on gpu, use the `[gpu]` extras:
+One of the dependencies for this repo is `faiss`. FAISS is distributed separately for CPU/GPU. If on gpu & wish to try GPU FAISS use the `[gpu]` extra:[^1]
 
 ```bash
 pip install -e .[gpu]
 ```
+
+[^1]: If it complains, uninstall `faiss-cpu` with `pip uninstall faiss-cpu` and try again.
 
 ## Getting Started
 
@@ -102,13 +106,13 @@ See Table 5 in the paper for a more detailed breakdown of relative training cost
 
 ### For training
 
-* you may need to truncate your inputs at training time, e.g. to 8k or 16k tokens. You can use the full inputs at evaluation time
-* you can also try splitting your inputs into 16k-token-chunks and training on each one as its own example
+- you may need to truncate your inputs at training time, e.g. to 8k or 16k tokens. You can use the full inputs at evaluation time
+- you can also try splitting your inputs into 16k-token-chunks and training on each one as its own example
 
 ### For evaluation (including early stopping)
 
-* if you're consistently running out of CUDA memory, set ```use_datastore=True``` to use a Faiss datastore to store hidden states.
-* if you're still having issues, set ```gpu_datastore=False``` or ```gpu_index=False```, but note that this will degrade performance
+- if you're consistently running out of CUDA memory, set ```use_datastore=True``` to use a Faiss datastore to store hidden states.
+- if you're still having issues, set ```gpu_datastore=False``` or ```gpu_index=False```, but note that this will degrade performance
 
 ## Citation
 
