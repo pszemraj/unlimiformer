@@ -93,7 +93,7 @@ def run_inference(
     input_column: str = "input",
     example_index: int = 0,
     max_length: int = 1024,
-    max_new_tokens: int = 512,
+    max_new_tokens: int = 1024,
 ) -> None:
     """
     run_inference - Basic example of running inference with Unlimiformer
