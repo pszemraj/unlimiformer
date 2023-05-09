@@ -8,6 +8,39 @@ Unlimiformer is a method for augmenting pretrained encoder-decoder models with a
 
 Unlimiformer can be used to improve performance of an already-trained model. However, for best results, the model should be trained with Unlimiformer.
 
+
+**Table of Contents**
+
+- [Unlimiformer](#unlimiformer)
+  - [Installation](#installation)
+  - [Getting Started](#getting-started)
+  - [Trained models](#trained-models)
+    - [Table 3: low-cost training methods](#table-3-low-cost-training-methods)
+    - [Table 4: Long-range training methods](#table-4-long-range-training-methods)
+  - [Table 5: BookSum](#table-5-booksum)
+  - [Recommended settings](#recommended-settings)
+    - [To evaluate with Unlimiformer](#to-evaluate-with-unlimiformer)
+    - [To train with Unlimiformer](#to-train-with-unlimiformer)
+  - [Tips for very large inputs](#tips-for-very-large-inputs)
+    - [For training](#for-training)
+    - [For evaluation (including early stopping)](#for-evaluation-including-early-stopping)
+  - [Citation](#citation)
+
+
+## Installation
+
+After cloning the repository, install the requirements:
+
+```bash
+pip install -e .
+```
+
+If on gpu, use the `[gpu]` extras:
+
+```bash
+pip install -e .[gpu]
+```
+
 ## Getting Started
 
 Paste the files from ```src``` into your source code folder.
