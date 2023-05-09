@@ -222,7 +222,7 @@ def run_inference(
             summary_ids[0], skip_special_tokens=True, clean_up_tokenization_spaces=True
         )
 
-        output_file = output_dir / f"summary_{i}_{semantic_label}.txt"
+        output_file = output_dir / f"{semantic_label}_summary.txt"
         try:
             with open(output_file, "w", encoding="utf-8") as file:
                 file.write(summary)
