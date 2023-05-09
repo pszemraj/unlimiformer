@@ -16,60 +16,60 @@
 """
 Fine-tuning the library models for sequence to sequence.
 """
-# You can also adapt this script on your own sequence to sequence task. Pointers for this are left as comments.
-from scipy.stats import boltzmann
 import logging
 import os
 import sys
 
-import numpy as np
-from unlimiformer import Unlimiformer
-from random_training_unlimiformer import RandomTrainingUnlimiformer
-
 import nltk
+import numpy as np
+import torch
+import wandb
+
+# You can also adapt this script on your own sequence to sequence task. Pointers for this are left as comments.
+from scipy.stats import boltzmann
+
+from unlimiformer.random_training_unlimiformer import RandomTrainingUnlimiformer
+from unlimiformer.unlimiformer import Unlimiformer
 
 # we import the logging frameworks before any other import to make sure all monkey patching for the logging are active
 # from sled import SledConfig
 
-import wandb
-import torch
 
 sys.path.insert(0, os.path.dirname(__file__))  # seq2seq package path
 sys.path.insert(0, os.getcwd())
 
-from dataclasses import dataclass, field
-from typing import List, Optional
 import json
 from copy import deepcopy
-import torch.nn.functional as F
+from dataclasses import dataclass, field
+from typing import List, Optional
 
 import datasets
-
+import torch.nn.functional as F
 import transformers
+from datasets import load_dataset
 from transformers import (
+    WEIGHTS_NAME,
     AutoConfig,
     AutoModelForSeq2SeqLM,
     AutoTokenizer,
+    DataCollatorForSeq2Seq,
     EarlyStoppingCallback,
     set_seed,
-    WEIGHTS_NAME,
 )
 from transformers.trainer_utils import get_last_checkpoint
-from transformers import DataCollatorForSeq2Seq
 
-from datasets import load_dataset
+from unlimiformer.metrics import load_metric
+from unlimiformer.metrics.metrics import HFMetricWrapper, MetricCollection
+from unlimiformer.utils.config import handle_args_to_ignore
+from unlimiformer.utils.custom_hf_argument_parser import CustomHfArgumentParser
+from unlimiformer.utils.custom_seq2seq_trainer import CustomTrainer
+from unlimiformer.utils.decoding import decode
+from unlimiformer.utils.duplicates import drop_duplicates_in_input
+from unlimiformer.utils.override_training_args import TrainingOverridesArguments
 
 # noinspection PyUnresolvedReferences
 # import sled  # *** required so that SledModels will be registered for the AutoClasses ***
 
-from utils.config import handle_args_to_ignore
-from utils.decoding import decode
-from metrics import load_metric
-from utils.duplicates import drop_duplicates_in_input
-from utils.override_training_args import TrainingOverridesArguments
-from utils.custom_seq2seq_trainer import CustomTrainer
-from utils.custom_hf_argument_parser import CustomHfArgumentParser
-from metrics.metrics import HFMetricWrapper, MetricCollection
 
 logger = logging.getLogger("sled")
 

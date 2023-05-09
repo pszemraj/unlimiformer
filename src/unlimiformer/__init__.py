@@ -1,5 +1,15 @@
 import sys
 
+from .unlimiformer import (
+    Unlimiformer,
+    ModelType,
+    UnlimiformerBART,
+    UnlimiformerT5,
+    UnlimiformerLED,
+)
+
+from .usage import UnlimiformerArguments, training_addin
+
 if sys.version_info[:2] >= (3, 8):
     from importlib.metadata import PackageNotFoundError, version  # pragma: no cover
 else:

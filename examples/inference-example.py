@@ -1,64 +1,94 @@
-from unlimiformer import Unlimiformer
-from random_training_unlimiformer import RandomTrainingUnlimiformer
-from usage import UnlimiformerArguments, training_addin
+import logging
+from pathlib import Path
 
-from transformers import BartForConditionalGeneration, AutoTokenizer
-from datasets import load_dataset
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+
+import fire
 import torch
+from datasets import load_dataset
+from transformers import AutoTokenizer, BartForConditionalGeneration
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-# example using govreport
-modelname = "abertsch/unlimiformer-bart-govreport-alternating"
-dataset = load_dataset("urialon/gov_report_validation")
-
-tokenizer = AutoTokenizer.from_pretrained("facebook/bart-base")
-model = BartForConditionalGeneration.from_pretrained(modelname)
-
-example_input = dataset["validation"][0]["input"]
-
-example = tokenizer(example_input, truncation=False, return_tensors="pt")
-truncated_example = tokenizer(
-    example_input, truncation=True, max_length=1024, return_tensors="pt"
-)
-
-example.to(device)
-truncated_example.to(device)
-
-print(f"INPUT LENGTH (tokens): {example['input_ids'].shape[-1]}")
+from unlimiformer import Unlimiformer, UnlimiformerArguments
 
 
-defaults = UnlimiformerArguments()
-unlimiformer_kwargs = {
-    "layer_begin": defaults.layer_begin,
-    "layer_end": defaults.layer_end,
-    "unlimiformer_head_num": defaults.unlimiformer_head_num,
-    "exclude_attention": defaults.unlimiformer_exclude,
-    "chunk_overlap": defaults.unlimiformer_chunk_overlap,
-    "model_encoder_max_len": defaults.unlimiformer_chunk_size,
-    "verbose": defaults.unlimiformer_verbose,
-    "tokenizer": tokenizer,
-    "unlimiformer_training": defaults.unlimiformer_training,
-    "use_datastore": defaults.use_datastore,
-    "flat_index": defaults.flat_index,
-    "test_datastore": defaults.test_datastore,
-    "reconstruct_embeddings": defaults.reconstruct_embeddings,
-    "gpu_datastore": defaults.gpu_datastore,
-    "gpu_index": defaults.gpu_index,
-}
+def load_and_prepare_models(
+    modelname: str, tokenizer_name: str = "facebook/bart-base"
+) -> tuple:
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
+    model = BartForConditionalGeneration.from_pretrained(modelname)
+    return tokenizer, model
 
-model.to(device)
-# the output of the model /without/ using unlimiformer
-truncated_out = tokenizer.batch_decode(
-    model.generate(**truncated_example, max_length=512)
-)
 
-model = Unlimiformer.convert_model(model, **unlimiformer_kwargs)
-model.eval()
-model.to(device)
+def process_example(
+    tokenizer, example_input: str, max_length: int, device: torch.device
+) -> tuple:
+    example = tokenizer(example_input, truncation=False, return_tensors="pt")
+    truncated_example = tokenizer(
+        example_input, truncation=True, max_length=max_length, return_tensors="pt"
+    )
+    example.to(device)
+    truncated_example.to(device)
 
-# the output of the model /with/ unlimiformer
-unlimiformer_out = tokenizer.batch_decode(
-    model.generate(**example, max_length=512), ignore_special_tokens=True
-)[0]
-print(unlimiformer_out)
+    return example, truncated_example
+
+
+def prepare_unlimiformer_kwargs(defaults: UnlimiformerArguments, tokenizer) -> dict:
+    unlimiformer_kwargs = {
+        key: getattr(defaults, key)
+        for key in dir(defaults)
+        if not key.startswith("__") and not callable(getattr(defaults, key))
+    }
+    unlimiformer_kwargs["tokenizer"] = tokenizer
+    return unlimiformer_kwargs
+
+
+def generate_output(model, example, max_length: int, tokenizer) -> str:
+    return tokenizer.batch_decode(
+        model.generate(**example, max_length=max_length), ignore_special_tokens=True
+    )[0]
+
+
+def run_inference(
+    modelname: str = "abertsch/unlimiformer-bart-govreport-alternating",
+    tokenizer_name: str = "facebook/bart-base",
+    dataset_name: str = "urialon/gov_report_validation",
+    split_name: str = "validation",
+    max_length: int = 1024,
+) -> None:
+    """
+    run_inference -  basic inference example
+
+    :param str modelname: _description_, defaults to "abertsch/unlimiformer-bart-govreport-alternating"
+    :param str tokenizer_name: _description_, defaults to "facebook/bart-base"
+    :param str dataset_name: _description_, defaults to "urialon/gov_report_validation"
+    :param str split_name: _description_, defaults to "validation"
+    :param int max_length: _description_, defaults to 1024
+    """
+    logger = logging.getLogger(__name__)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    dataset = load_dataset(dataset_name)
+
+    tokenizer, model = load_and_prepare_models(modelname, tokenizer_name)
+    example_input = dataset["validation"][0]["input"]
+    example, truncated_example = process_example(
+        tokenizer, example_input, max_length, device
+    )
+
+    print(f"INPUT LENGTH (tokens): {example['input_ids'].shape[-1]}")
+
+    defaults = UnlimiformerArguments()
+    unlimiformer_kwargs = prepare_unlimiformer_kwargs(defaults, tokenizer)
+
+    model.to(device)
+    truncated_out = generate_output(model, truncated_example, max_length, tokenizer)
+
+    model = Unlimiformer.convert_model(model, **unlimiformer_kwargs)
+    model.eval()
+    model.to(device)
+
+    unlimiformer_out = generate_output(model, example, max_length, tokenizer)
+    print(unlimiformer_out)
+
+
+if __name__ == "__main__":
+    fire.Fire(run_inference)

@@ -15,7 +15,7 @@ from transformers import (
 
 from typing import TypeVar, Generic
 
-from index_building import Datastore, DatastoreBatch
+from unlimiformer.index_building import Datastore, DatastoreBatch
 
 logger = logging.getLogger("attention_knn")
 logger.setLevel(20)
