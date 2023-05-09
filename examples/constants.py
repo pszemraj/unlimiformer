@@ -1,7 +1,3 @@
-"""
-constants.py - This file contains the constants used in the examples.
-"""
-
 PRETRAINED_MODELS = {
     "bart-base-govreport": {
         "model_name": "abertsch/bart-base-govreport",
@@ -31,8 +27,8 @@ PRETRAINED_MODELS = {
         "model_name": "abertsch/bart-base-booksum",
         "tokenizer_name": "facebook/bart-base",
     },
-    "unlimiformer-bart-booksum-earlyk": {
-        "model_name": "abertsch/unlimiformer-bart-booksum-earlyk",
+    "unlimiformer-earlyk-bart-booksum": {
+        "model_name": "abertsch/unlimiformer-earlyk-bart-booksum",
         "tokenizer_name": "facebook/bart-base",
     },
     "unlimiformer-bart-booksum-random-encoding": {
@@ -41,6 +37,10 @@ PRETRAINED_MODELS = {
     },
     "unlimiformer-bart-booksum-alternating": {
         "model_name": "abertsch/unlimiformer-bart-booksum-alternating",
+        "tokenizer_name": "facebook/bart-base",
+    },
+    "unlimiformer-bart-booksum-retrieval": {
+        "model_name": "abertsch/unlimiformer-bart-booksum-retrieval",
         "tokenizer_name": "facebook/bart-base",
     },
 }
